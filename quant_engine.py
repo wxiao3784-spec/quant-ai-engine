@@ -1,61 +1,45 @@
 import akshare as ak
 import pandas as pd
-import time
 
 def value_invest_filter():
-    print("--- 启动全自动投研引擎 ---")
-    df = None
+    print("--- 启动全自动投研引擎（自诊断模式） ---")
     
-    print("【正在尝试新浪核心数据源...】")
+    # 尝试抓取新浪数据
     try:
+        print("【正在从新浪接口获取数据...】")
         df = ak.stock_zh_a_spot()
-        if df is not None and not df.empty:
-            print("✅ 新浪数据抓取成功！开始对齐字段...")
-            
-            # 强制转换数据类型，防止文本导致计算报错
-            df['trade'] = pd.to_numeric(df['trade'], errors='coerce')  # 最新价
-            df['per'] = pd.to_numeric(df['per'], errors='coerce')      # 市盈率
-            df['mktcap'] = pd.to_numeric(df['mktcap'], errors='coerce')  # 总市值（万元）
-            
-            # 新浪的总市值单位是万元，我们换算成“亿元”方便看
-            df['总市值(亿)'] = (df['mktcap'] / 10000).round(2)
-            
-            # 统一改名，方便后续过滤
-            df = df.rename(columns={
-                'code': '代码',
-                'name': '名称',
-                'trade': '最新价', 
-                'per': '市盈率'
-            })
-    except Exception as e:
-        print(f"⚠️ 新浪数据源读取失败: {e}")
-
-    if df is None or df.empty:
-        print("❌ 未获取到任何数据，请检查接口。")
-        return
-
-    # 执行价值投资过滤逻辑
-    try:
-        # 1. 过滤掉亏损和高估值公司（市盈率在 0 到 20 之间）
-        condition_pe = (df['市盈率'] > 0) & (df['市盈率'] < 20)
         
-        # 2. 筛选总市值大于 500 亿人民币（也就是 500 亿）的公司
-        condition_market_cap = df['总市值(亿)'] > 500
+        # 打印出所有列名，如果再次报错，你可以直接通过日志看到真实列名
+        print(f"数据抓取成功，当前列名有: {list(df.columns)}")
         
-        filtered_df = df[condition_pe & condition_market_cap].sort_values(by='市盈率')
+        # 尝试清洗数据，使用更通用的列名映射
+        # 自动识别可能的市盈率和价格列
+        # 常见列名: 'trade', 'price', 'per', 'pe', 'mktcap'
         
-        print(f"\n✅ 成功筛选出符合【大市值 + 低估值】逻辑的标的：{len(filtered_df)} 只")
-        print("\n--- 核心观察池 (Top 10) ---")
+        # 将可能的列名转为数值，报错忽略
+        for col in df.columns:
+            if col not in ['代码', '名称']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # 提取并展示核心数据
-        result = filtered_df[['代码', '名称', '最新价', '市盈率', '总市值(亿)']].head(10)
-        # 给总市值加上“亿”字后缀方便阅读
-        result['总市值(亿)'] = result['总市值(亿)'].astype(str) + ' 亿'
+        print("✅ 数据清洗完毕，开始根据价值逻辑筛选...")
         
-        print(result.to_string(index=False))
+        # 假设常见的列映射，如果你的截图报错提示 trade/市盈率 缺失，
+        # 我们用 .get() 方法处理，避免直接报错
+        price = df.get('trade') if 'trade' in df else df.get('最新价')
+        pe = df.get('per') if 'per' in df else df.get('市盈率')
+        mktcap = df.get('mktcap') if 'mktcap' in df else df.get('总市值')
+        
+        # 简单的价值过滤
+        mask = (pe > 0) & (pe < 30) & (mktcap > 50000000000)
+        result = df[mask].sort_values(by=pe.name)
+        
+        print("\n--- 筛选结果 ---")
+        print(result[['代码', '名称', price.name, pe.name]].head(10).to_string(index=False))
         
     except Exception as e:
-        print(f"❌ 数据筛选过滤时出现预期外错误: {e}")
+        print(f"❌ 运行报错，错误详情: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     value_invest_filter()
