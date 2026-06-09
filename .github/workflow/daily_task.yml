@@ -1,0 +1,19 @@
+name: Daily Quant Analysis
+on:
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: 设置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: 安装必要库
+        run: pip install akshare pandas openai
+      - name: 运行选股引擎
+        run: python quant_engine.py
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
