@@ -1,0 +1,21 @@
+name: AKShare Data Engine
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 搭建 Python 环境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: 安装后端抓取库
+        run: pip install akshare pandas
+        
+      - name: 启动选股引擎
+        run: python quant_engine.py
